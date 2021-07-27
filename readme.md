@@ -6,6 +6,8 @@ Since 2009, the SNSF has financed a portion of the indirect research costs incur
 [German](https://data.snf.ch/stories/overhead-2021-de.html)
 [French](https://data.snf.ch/stories/overhead-2021-fr.html)
 
+DOI: 10.46446/datastory.overhead-2021
+
 Author(s): Stéphanie Würth
 
 Publication date: 2021-07-28
