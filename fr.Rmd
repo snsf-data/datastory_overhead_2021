@@ -1,0 +1,261 @@
+---
+params: 
+  title: ""
+  publication_date: ""
+  doi: ""
+output: 
+  html_document:
+    anchor_sections: false
+    theme: null
+    highlight: null
+    mathjax: null
+    css: ["style.css", "https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700&display=swap"]
+    self_contained: true
+title: "`r params$title`"
+---
+
+```{r general-setup, include=FALSE}
+## This file contains the FRENCH version of the data story 
+
+# Set general chunk options
+knitr::opts_chunk$set(echo = FALSE, fig.showtext = TRUE, fig.retina = 3, 
+                      fig.align = "center", warning = FALSE, message = FALSE)
+
+# Install pacman package if needed
+if (!require("pacman")) {
+  install.packages("pacman")
+  library(pacman)
+}
+
+# Install snf.datastory package if not available, otherwise load it
+if (!require("snf.datastory")) {
+  if (!require("devtools")) {
+    install.packages("devtools")
+    library(devtools)
+  }
+  install_github("snsf-data/snf.datastory")
+  library(snf.datastory)
+}
+
+# Load packages
+p_load(tidyverse,
+       lubridate,
+       scales, 
+       conflicted, 
+       jsonlite,
+       here, 
+       ggiraph,
+       readxl)
+
+# Conflict preferences
+conflict_prefer("filter", "dplyr")
+conflict_prefer("get_datastory_theme", "snf.datastory")
+conflict_prefer("get_datastory_scheme", "snf.datastory")
+
+# Increase showtext package font resolution
+showtext_opts(dpi = 320)
+
+# Set the locale for date formatting (Windows)
+Sys.setlocale("LC_TIME", "French")
+
+# Create function to print number with local language-specific format 
+print_num <- function(x) snf.datastory::print_num(x, lang = "fr")
+
+# Knitr hook for local formatting of printed numbers
+knitr::knit_hooks$set(
+  inline <- function(x) {
+    if (!is.numeric(x)) {
+      x
+    } else {
+      print_num(x)
+    }
+  }
+)
+```
+
+```{r print-header-infos, results='asis'}
+# Add publication date to header
+cat(format(as_datetime(params$publication_date), "%d.%m.%Y"))
+
+# Register the Google font (same as Data Portal, is not loaded twice)
+cat(paste0("<link href='https://fonts.googleapis.com/css?family=", 
+           "Source+Sans+Pro:400,700&display=swap' rel='stylesheet'>"))
+```
+
+```{r story-specific-setup, include=FALSE}
+# Set story-specific variables etc. here
+
+data1 <- read_excel(here("data", "data_overhead_2021.xlsx"))
+data2 <- read_excel(here("data", "development_overhead_2013-2021.xlsx"))
+
+```
+
+
+<!-- Short lead (2-3 sentences) in bold -->
+
+__Depuis 2009, le FNS finance une partie des coûts induits par les projets qu’il a approuvés dans les institutions de recherche. Ainsi, 102 millions de francs y sont affectés pour 2021, sous forme de subsides « overhead ».__
+
+Grâce aux subsides overhead, la Confédération donne plus de poids à la recherche financée sur une base concurrentielle en Suisse. Ces contributions aux frais indirects de la recherche complètent les subventions de base et les subsides de projet de la Confédération. Les subsides overhead motivent les hautes écoles à solliciter des fonds du FNS, renforçant ainsi la recherche dans ces institutions.
+
+### Maximum 15 % 
+
+Le montant annuel disponible pour les coûts indirects correspond à un pourcentage des subsides du FNS approuvés et éligibles l’année précédente. Ce pourcentage est fixé à un maximum de 15 % dans le message relatif à l’encouragement de la formation, de la recherche et de l’innovation (<a target="_blank" href="https://www.fedlex.admin.ch/eli/fga/2020/866/fr">message FRI</a>) 2021-2024. Les institutions éligibles reçoivent ces subsides supplémentaires du FNS, proportionnellement au financement approuvé l’année précédente (dans les instruments qui y ont droit). Les institutions qui ont levé plus de fonds reçoivent donc également des subsides plus élevés pour couvrir les coûts indirects qui en découlent.
+
+
+Les détails – de l’éligibilité aux modalités de paiement – sont décrits dans le <a target="_blank" href="https://media.snf.ch/pTXWfnZU76Rhr9y/ueb_overhead_reglement_f.pdf">règlement des subsides overhead</a>. Les instruments de financement éligibles y sont énumérés dans une annexe.
+
+### Subsides overhead 2021
+
+Un total de 102 millions de francs suisses est disponible pour les subsides overhead en 2021. L’année précédente, le FNS a octroyé 753 millions de francs aux instruments éligibles au financement. Le pourcentage est donc de 13,5 %.
+
+<div class="plot-box">
+
+<div class="plot-title">En 2021, les subsides overhead se répartissent entre les différents types d’institutions comme suit</div>
+
+```{r plot-1, out.width="100%", fig.height=4}
+
+# Create ggplot plot
+plot1 <- data1 %>%
+  group_by(Cat_fr) %>% 
+  summarise(value = round((sum(Overheadbeitrag) / 1000000), digits = 1)) %>% 
+  arrange(desc(value)) %>% 
+  mutate(Cat_fr = fct_inorder(Cat_fr)) %>% 
+  ggplot(aes(x = Cat_fr, 
+             y = value,
+             tooltip = paste0(value, " millions de francs"))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1], 
+                       width = 0.8) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "en millions de francs")
+
+# Create ggiraph object
+girafe(ggobj = plot1,
+       height_svg = 4,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+
+```
+
+<div class="caption">
+Subsides overhead 2021. 
+</div>
+</div>
+
+
+<div class="plot-box">
+
+<div class="plot-title">Les subsides overhead les plus élevés en 2021 vont aux institutions suivantes</div>
+
+```{r plot-2, out.width="100%", fig.height=4}
+# Create ggplot plot
+plot2 <- data1 %>%
+  mutate(value = round((Overheadbeitrag / 1000000), digits = 1)) %>% 
+  arrange(desc(value)) %>% 
+  mutate(ResearchInstitution_fr = fct_inorder(ResearchInstitution_fr)) %>% 
+  slice_head(n=10) %>% 
+  ggplot(aes(x = ResearchInstitution_fr, 
+             y = value, 
+             tooltip = paste0(value, " millions de francs"))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1]) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "en millions de francs")
+
+# Create ggiraph object
+girafe(ggobj = plot2,
+       height_svg = 4,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+
+```
+
+<div class="caption">
+Subsides overhead 2021. 
+</div>
+</div>
+
+Les subsides sont versés aux institutions pour moitié en mars et pour moitié en septembre.
+
+
+### Utilisation diverse
+
+Les institutions peuvent disposer librement des subsides overhead. <a target="_blank" href="https://wissenschaftsrat.ch/images/stories/pdf/de/20191009_SWR_Schlussbericht-Overhead.pdf">L’évaluation par le Conseil suisse de la science</a> (CCS, disponible seulement en allemand) en 2019 montre qu’ils sont utilisés par les institutions à des fins différentes. Souvent, elles les utilisent pour financer les services centraux, les infrastructures de recherche et les plateformes technologiques. De nombreuses institutions ont également déclaré qu’elles seraient en mesure de réaliser des projets moins compétitifs sans la participation du FNS aux coûts indirects de la recherche. Certaines institutions utilisent les subsides pour stimuler elles-mêmes la recherche compétitive. En outre, ils sont également utilisés pour couvrir les frais de personnel (par exemple, pour la conduite de projets) et les frais d’acquisition. 
+
+
+### Évolution des subsides overhead depuis 2013
+
+<div class="plot-box">
+
+<div class="plot-title">Les subsides overhead ont évolué comme suit depuis 2013</div>
+
+```{r plot-3, out.width="100%", fig.height=3.5}
+# Example of an interactive ggiraph plot, created out of a ggplot plot
+
+# Create ggplot plot
+plot3 <- data2 %>%
+  mutate(Jahr = as.numeric(Jahr)) %>% 
+  ggplot(aes(x = Jahr, 
+             y = Overheadbeitrag,
+             tooltip = paste0(Overheadbeitrag, " millions de francs",
+                              "\n", "Pourcentage overhead correspondant: ", 
+                              round(Prozentsatz * 100, digits = 1), "%"
+                            ))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1]) +
+  scale_x_continuous(breaks = seq(2013, 2021, 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "en millions de francs")
+
+# Create ggiraph object
+girafe(ggobj = plot3,
+       height_svg = 3.5,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+```
+
+<div class="caption">
+Subsides overhead 2013-2021.
+</div>
+</div>
+
+
+<div class="info-box">
+
+### Données
+
+* Vous pouvez télécharger <a target="_blank" href="https://github.com/snsf-data/datastory_overhead_2021/blob/main/data/data_overhead_2021.xlsx">ici</a> les données de tous les subsides overhead 2021.
+* Vous pouvez télécharger <a target="_blank" href="https://github.com/snsf-data/datastory_overhead_2021/blob/main/data/development_overhead_2013-2021.xlsx">ici</a> les données reflétant l’évolution des subsides overhead entre 2013 et 2021.
+
+</div>
+
+Les données, le texte et le code de ce récit de données sont <a href="https://github.com/snsf-data/datastory_overhead_2021" target="_blank">disponibles sur Github</a> et <a href="https://doi.org/10.46446/datastory.overhead-2021" target="_blank">archivés sur Zenodo</a>. DOI: 10.46446/datastory.overhead-2021
+<br>
+<br>

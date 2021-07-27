@@ -1,0 +1,261 @@
+---
+params: 
+  title: ""
+  publication_date: ""
+  doi: ""
+output: 
+  html_document:
+    anchor_sections: false
+    theme: null
+    highlight: null
+    mathjax: null
+    css: ["style.css", "https://fonts.googleapis.com/css?family=Source+Sans+Pro:400,700&display=swap"]
+    self_contained: true
+title: "`r params$title`"
+---
+
+```{r general-setup, include=FALSE}
+## This file contains the ENGLISH version of the data story
+
+# Set general chunk options
+knitr::opts_chunk$set(echo = FALSE, fig.showtext = TRUE, fig.retina = 3, 
+                      fig.align = "center", warning = FALSE, message = FALSE)
+
+# Install pacman package if needed
+if (!require("pacman")) {
+  install.packages("pacman")
+  library(pacman)
+}
+
+# Install snf.datastory package if not available, otherwise load it
+if (!require("snf.datastory")) {
+  if (!require("devtools")) {
+    install.packages("devtools")
+    library(devtools)
+  }
+  install_github("snsf-data/snf.datastory")
+  library(snf.datastory)
+}
+
+# Load packages
+p_load(tidyverse,
+       lubridate,
+       scales, 
+       conflicted, 
+       jsonlite,
+       here, 
+       ggiraph, 
+       readxl)
+
+# Conflict preferences
+conflict_prefer("filter", "dplyr")
+conflict_prefer("get_datastory_theme", "snf.datastory")
+conflict_prefer("get_datastory_scheme", "snf.datastory")
+
+# Increase showtext package font resolution
+showtext_opts(dpi = 320)
+
+# Set the locale for date formatting (Windows)
+Sys.setlocale("LC_TIME", "English")
+
+# Create function to print number with local language-specific format 
+print_num <- function(x) snf.datastory::print_num(x, lang = "en")
+
+# Knitr hook for local formatting of printed numbers
+knitr::knit_hooks$set(
+  inline <- function(x) {
+    if (!is.numeric(x)) {
+      x
+    } else {
+      print_num(x)
+    }
+  }
+)
+```
+
+```{r print-header-infos, results='asis'}
+# Add publication date to header
+cat(format(as_datetime(params$publication_date), "%d.%m.%Y"))
+
+# Register the Google font (same as Data Portal, is not loaded twice)
+cat(paste0("<link href='https://fonts.googleapis.com/css?family=", 
+           "Source+Sans+Pro:400,700&display=swap' rel='stylesheet'>"))
+```
+
+```{r story-specific-setup, include=FALSE}
+# Set story-specific variables etc. here
+
+data1 <- read_excel(here("data", "data_overhead_2021.xlsx"))
+data2 <- read_excel(here("data", "development_overhead_2013-2021.xlsx"))
+
+```
+
+
+<!-- Short lead (2-3 sentences) in bold -->
+
+__Since 2009, the SNSF has financed a portion of the indirect research costs incurred by SNSF-funded projects at research institutions. In 2021, 102 million Swiss francs are available for these "overhead" costs.__
+
+With overhead contributions the federal government intends to reinforce competitively financed research in Switzerland. The funds supplement the federal government’s basic and project contributions. Overhead serves as an incentive for universities to apply for SNSF funds, thus strengthening research at these institutions. 
+
+### Maximum of 15 percent
+
+The sum available each year for indirect costs is calculated as a percentage of the research funding acquired by eligible institutions under eligible funding schemes. This percentage has been set at a maximum of 15 percent as stipulated in the Dispatch on the Promotion of Education, Research and Innovation 2021–2024 (<a target="_blank" href="https://www.sbfi.admin.ch/sbfi/en/home/eri-policy/eri-21-24.html">ERI Dispatch</a>). Eligible institutions receive these additional contributions from the SNSF based on the funding approved for the previous year (under the eligible schemes). Institutions that have received more funds will thus also receive correspondingly higher overhead contributions to cover the research costs incurred indirectly. 
+
+The details – from eligibility to methods of payment – are described in the <a target="_blank" href="https://media.snf.ch/1xUpueHxMemdaVr/ueb_overhead_reglement_e.pdf">Overhead Regulations</a>. The annex to the regulations contains a list of eligible funding schemes. 
+
+### Overhead contributions for 2021
+
+A total of 102 million francs is available for overhead contributions in 2021. In the previous year, the SNSF approved 753 million francs in the eligible schemes. The percentage rate is thus 13.5 percent.
+
+<div class="plot-box">
+
+<div class="plot-title">For 2021, overhead contributions are allocated among the various types of institutions as follows</div>
+
+```{r plot-1, out.width="100%", fig.height=4}
+
+# Create ggplot plot
+plot1 <- data1 %>%
+  group_by(Cat_en) %>% 
+  summarise(value = round((sum(Overheadbeitrag) / 1000000), digits = 1)) %>% 
+  arrange(desc(value)) %>% 
+  mutate(Cat_en = fct_inorder(Cat_en)) %>% 
+  ggplot(aes(x = Cat_en, 
+             y = value,
+             tooltip = paste0(value, " million francs"))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1], 
+                       width = 0.8) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "in million francs")
+
+# Create ggiraph object
+girafe(ggobj = plot1,
+       height_svg = 4,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+
+```
+
+<div class="caption">
+Overhead contributions 2021. 
+</div>
+</div>
+
+
+<div class="plot-box">
+
+<div class="plot-title">The highest overhead contributions for 2021 are awarded to the following institutions</div>
+
+```{r plot-2, out.width="100%", fig.height=4}
+# Create ggplot plot
+plot2 <- data1 %>%
+  mutate(value = round((Overheadbeitrag / 1000000), digits = 1)) %>% 
+  arrange(desc(value)) %>% 
+  mutate(ResearchInstitution_en = fct_inorder(ResearchInstitution_en)) %>% 
+  slice_head(n=10) %>% 
+  ggplot(aes(x = ResearchInstitution_en, 
+             y = value, 
+             tooltip = paste0(value, " million francs"))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1]) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "in million francs")
+
+# Create ggiraph object
+girafe(ggobj = plot2,
+       height_svg = 4,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+
+```
+
+<div class="caption">
+Overhead contributions 2021. 
+</div>
+</div>
+
+Overhead is paid to institutions in two halves, in March and September.
+
+
+### Flexible use
+
+Institutions are free to use the overhead contributions as they wish. An <a target="_blank" href="https://wissenschaftsrat.ch/images/stories/pdf/de/20191009_SWR_Schlussbericht-Overhead.pdf">evaluation by the Swiss Science Council</a> (SSC, available only in German) in 2019 shows that overhead funds are used by institutions for different purposes. Often, the funds go to pay for central services, research infrastructure and technology development. Many institutions also indicated that their research projects would be less competitive without SNSF contributions for indirect research costs. Some institutions use the contributions to provide incentives for competitive research themselves. The funds are also used to cover personnel costs (e.g. for project management) and acquisition costs. 
+
+
+### Development of overhead contributions since 2013
+
+<div class="plot-box">
+
+<div class="plot-title">Since 2013 overhead contributions have trended as follows</div>
+
+```{r plot-3, out.width="100%", fig.height=3.5}
+# Example of an interactive ggiraph plot, created out of a ggplot plot
+
+# Create ggplot plot
+plot3 <- data2 %>%
+  mutate(Jahr = as.numeric(Jahr)) %>% 
+  ggplot(aes(x = Jahr, 
+             y = Overheadbeitrag,
+             tooltip = paste0(Overheadbeitrag, " million francs",
+                              "\n", "Corresponding overhead percentage rate: ", 
+                              round(Prozentsatz * 100, digits = 1), "%"
+                            ))) +
+  geom_col_interactive(color = "white", fill = get_datastory_scheme()[1]) +
+  scale_x_continuous(breaks = seq(2013, 2021, 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 0.8)) +
+  get_datastory_theme(gridline_axis = "y") + 
+   labs(
+      x = NULL, y = "in million francs")
+
+# Create ggiraph object
+girafe(ggobj = plot3,
+       height_svg = 3.5,
+       options = list(
+         opts_toolbar(saveaspng = FALSE),
+         opts_hover(css = "fill:#F75858;stroke:#F75858;"),
+         opts_tooltip(
+           css = get_ggiraph_tooltip_css(),
+           opacity = 0.8,
+           delay_mouseover = 0,
+           delay_mouseout = 0
+         )
+       ))
+```
+
+<div class="caption">
+Overhead contributions 2013-2021.
+</div>
+</div>
+
+
+<div class="info-box">
+
+### Data
+
+* Download data for all 2021 overhead contributions <a target="_blank" href="https://github.com/snsf-data/datastory_overhead_2021/blob/main/data/data_overhead_2021.xlsx">here</a>. 
+* Download data for the trend in overhead contributions from 2013 to 2021 <a target="_blank" href="https://github.com/snsf-data/datastory_overhead_2021/blob/main/data/development_overhead_2013-2021.xlsx">here</a>. 
+
+
+</div>
+
+Data, text and code of this data story are <a href="https://github.com/snsf-data/datastory_overhead_2021" target="_blank">available on Github</a> and <a href="https://doi.org/10.46446/datastory.overhead-2021" target="_blank">archived on Zenodo</a>.<br>DOI: 10.46446/datastory.overhead-2021
+<br>
+<br>
